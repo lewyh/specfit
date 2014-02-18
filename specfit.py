@@ -1,4 +1,4 @@
-# make sure to set PYTHONPATH to ""
+# make sure to set PYTHONPATH to ""  not a syntax error
 from astropy.table import Table
 import matplotlib.pyplot as plt
 import numpy as np
