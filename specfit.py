@@ -4,11 +4,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 from numpy import random
 import emcee
-import astropy.io.fits as pyfits
+import astropy.io.fits as fits
 import triangle
 import time
 import math
 import acor
+import os
 
 # things to do to improve the code:
 # - Which parameters affect the fit: Macroturbulent velocity, Alpha enhancement, NEW/OLD models
@@ -65,10 +66,12 @@ def lnlike(theta, star, wave):
 	else:
 		vel_unit = "100"
 
-	filename1 = "templates/Munari/CAII/T" + teff_below + "G" + logg_unit + met_sign + met_unit + "V" + vel_unit + "K2SNWNVD01F.FITS"
-	filename2 = "templates/Munari/CAII/T" + teff_above + "G" + logg_unit + met_sign + met_unit + "V" + vel_unit + "K2SNWNVD01F.FITS"
-	model1 = pyfits.getdata(filename1).__array__().astype('float64')
-	model2 = pyfits.getdata(filename2).__array__().astype('float64')
+        key1 = "T{0}G{1}{2}{3}V{4}K2S".format(teff_below,logg_unit,
+                                              met_sign, met_unit, vel_unit)
+        key2 = "T{0}G{1}{2}{3}V{4}K2S".format(teff_above, logg_unit,
+                                              met_sign, met_unit, vel_unit)
+	model1 = munari[key1]
+	model2 = munari[key2]
 	fraction = (teff - float(teff_below))/250.
 	model = model1*(1.-fraction) + model2*fraction
 	model = np.interp(wave,modelwave,model)
@@ -165,28 +168,39 @@ def runmore(pos,nruns):
 	print "Time per run and per walker is " + total + " seconds (" + str(runsdone) + " runs / " + str(nwalkers) + " walkers)"
 	print "Autocorrelation time = " + str(tau) + " and independent samples = " + str(indsamples)
 
+##### VARIABLES FOR LOCATING DATA FILES #####
 
+if (os.uname()[1]).startswith('uhppc'):
+    uname = os.getlogin()
+    munari_dir = "/local/home/{0}/Munari/".format(uname)
+elif (os.uname()[1]).startswith('node'):
+    munari_dir = "/car-data/hfarnhill/Munari/"
 
 ##### MAIN CODE STARTS HERE #####
 
 # read in the template wavelength file first
-modelwave = pyfits.getdata("templates/Munari/wavelengths.fits").__array__().astype('float64')
+modelwave = np.load("{0}wavelengths.npy".format(munari_dir))
+
+# read in the template dictionary
+munari = np.load("{0}Munari_masked.dict.npy".format(munari_dir))
+munari = munari.item()
 
 # now read in the star file
 starfile = "spectra/2011b/extract/016_t.fits"
-star, header = pyfits.getdata(starfile, 0, header=True)
+star, header = fits.getdata(starfile, 0, header=True)
 wave = (np.linspace(1., header['NAXIS1'], header['NAXIS1'])-header['CRPIX1'])*header['CD1_1'] + header['CRVAL1']
+
 fit = np.polyfit(wave,star,2)
 newfit = fit[2] + fit[1]*wave + fit[0]*wave**2
 star = star / newfit
 
 # Get sky file
 skyfile = "spectra/2011b/extract/016_sky.fits"
-skyspec = pyfits.getdata(skyfile, 0, header=False)/newfit
+skyspec = fits.getdata(skyfile, 0, header=False)/newfit
 
 # set parameters for emcee and set starting position guess
 # Have lots of walkers (like hundreds): 
-ndim, nwalkers, nruns = 5, 100, 100
+ndim, nwalkers, nruns = 5, 10, 100
 param_keys = ['logteff','log g','Vrot','[M/H]','Sky']
 param_labels=[r'Teff',r'log g',r'Vrot',r'[M/H]',r'Sky']
 # walkers currently randomly distributed across parameter space - should change this to tight balls around likely results
