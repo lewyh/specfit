@@ -66,12 +66,20 @@ def lnlike(theta, star, wave):
 	else:
 		vel_unit = "100"
 
-        key1 = "T{0}G{1}{2}{3}V{4}K2S".format(teff_below,logg_unit,
+        key1 = "T{0}G{1}{2}{3}V{4}K2S".format(teff_below, logg_unit,
                                               met_sign, met_unit, vel_unit)
+        if munari.has_key("{0}NWNVD01F".format(key1)):
+    	    model1 = munari["{0}NWNVD01F".format(key1)]
+        else:
+            model1 = munari["{0}ODNVD01F".format(key1)]
+
         key2 = "T{0}G{1}{2}{3}V{4}K2S".format(teff_above, logg_unit,
                                               met_sign, met_unit, vel_unit)
-	model1 = munari[key1]
-	model2 = munari[key2]
+        if munari.has_key("{0}NWNVD01F".format(key2)):
+    	    model2 = munari["{0}NWNVD01F".format(key2)]
+        else:
+            model2 = munari["{0}ODNVD01F".format(key2)]
+
 	fraction = (teff - float(teff_below))/250.
 	model = model1*(1.-fraction) + model2*fraction
 	model = np.interp(wave,modelwave,model)
@@ -182,7 +190,7 @@ elif (os.uname()[1]).startswith('node'):
 modelwave = np.load("{0}wavelengths.npy".format(munari_dir))
 
 # read in the template dictionary
-munari = np.load("{0}Munari_masked.dict.npy".format(munari_dir))
+munari = np.load("{0}Munari.dict.npy".format(munari_dir))
 munari = munari.item()
 
 # now read in the star file
